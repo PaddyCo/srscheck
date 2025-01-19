@@ -7,11 +7,12 @@ use comfy_table::{
     Attribute, Cell, Color, ContentArrangement, Table,
 };
 use config::Config;
-use log::info;
 use providers::{DataSource, ProviderData};
 use serde::Serialize;
 use sys_locale::get_locale;
+use tracing::{info, warn};
 
+mod cache;
 mod providers;
 mod settings;
 
@@ -29,15 +30,25 @@ struct Output {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // TODO: Add support for verbose, which will set level to "info"
+    // TODO: Add support for very verbose, which will set level to "debug"
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
     let settings = settings::Settings::new()?;
 
     let mut data: HashMap<&String, ProviderData> = HashMap::new();
 
     for (name, provider) in &settings.providers {
+        let cache = cache::Cache::new(name, &settings)?;
+        // TODO: Run in parallel
+        // TODO: Handle errors from provider, and continue to next provider and track all failed
+        // providers
         let provider_data = match &provider {
-            settings::Provider::WaniKani(provider) => provider.get_data().await?,
-            settings::Provider::Bunpro(provider) => provider.get_data().await?,
-            settings::Provider::Anki(provider) => provider.get_data().await?,
+            settings::Provider::WaniKani(provider) => provider.get_data(cache).await?,
+            settings::Provider::Bunpro(provider) => provider.get_data(cache).await?,
+            settings::Provider::Anki(provider) => provider.get_data(cache).await?,
+            settings::Provider::KameSame(provider) => provider.get_data(cache).await?,
         };
 
         data.insert(name, provider_data);

@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
-use log::{info, warn};
 use serde::Deserialize;
+use tracing::{info, instrument, warn};
+
+use crate::cache::Cache;
 
 use super::{DataSource, ProviderData};
 
@@ -27,14 +29,15 @@ struct StudyQueueResponse {
 }
 
 impl DataSource for BunproProvider {
-    async fn get_data(&self) -> Result<ProviderData, reqwest::Error> {
+    #[instrument(name = "BunproProvider::get_data", skip(self, _cache))]
+    async fn get_data(&self, _cache: Cache) -> Result<ProviderData, reqwest::Error> {
         let client = reqwest::Client::new();
-        info!("[BUNPRO] Fetching data from Bunpro...");
+        info!("Fetching data from Bunpro...");
 
         let url = format!("https://bunpro.jp/api/user/{}/study_queue", self.api_key);
 
         let resp = client.get(url).send().await?;
-        info!("[BUNPRO] Successfully fetched data from Bunpro");
+        info!("Successfully fetched data from Bunpro");
 
         let study_queue = resp.json::<StudyQueueResponse>().await?;
 

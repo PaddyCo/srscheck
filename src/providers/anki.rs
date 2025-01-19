@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
-use log::{info, warn};
 use serde::{Deserialize, Serialize};
+use tracing::{error, info, instrument, span, warn};
+
+use crate::cache::Cache;
 
 use super::{DataSource, ProviderData};
 
@@ -49,9 +51,10 @@ struct DeckStatsParams {
 }
 
 impl DataSource for AnkiProvider {
-    async fn get_data(&self) -> Result<ProviderData, reqwest::Error> {
+    #[instrument(name = "AnkiProvider::get_data", skip(self, cache))]
+    async fn get_data(&self, cache: Cache) -> Result<ProviderData, reqwest::Error> {
         info!(
-            "[ANKI] Fetching data from AnkiConnect for deck {}...",
+            "Fetching data from AnkiConnect for deck \"{}\"...",
             &self.deck
         );
 
@@ -71,7 +74,7 @@ impl DataSource for AnkiProvider {
             .send()
             .await?;
         info!(
-            "[ANKI] Successfully fetched data from AnkiConnect for deck {}",
+            "Successfully fetched data from AnkiConnect for deck {}",
             &self.deck
         );
 
@@ -79,10 +82,7 @@ impl DataSource for AnkiProvider {
 
         match response.result {
             None => {
-                warn!(
-                    "[ANKI] AnkiConnect returned an error: {}",
-                    response.error.unwrap()
-                );
+                error!("AnkiConnect returned an error: {}", response.error.unwrap());
                 Ok(ProviderData {
                     review_count: 0,
                     next_review: None,

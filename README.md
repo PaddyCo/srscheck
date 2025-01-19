@@ -16,13 +16,15 @@ TODO: Add more usage information once we have added actual switches to the CLI.
 ╭──────────┬─────────┬─────────────────────╮
 │ System   ┆ Reviews ┆ Next Review         │
 ╞══════════╪═════════╪═════════════════════╡
-│ Bunpro   ┆ 0       ┆ 2025-01-19 12:00:00 │
-├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
-│ Anki     ┆ 0       ┆ N/A                 │
-├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
 │ WaniKani ┆ 0       ┆ 2025-01-19 15:00:00 │
 ├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
-│ Total    ┆ 0       ┆ 2025-01-19 12:00:00 │
+│ Anki     ┆ 12      ┆ Now                 │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ KameSame ┆ 42      ┆ Now                 │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Bunpro   ┆ 9       ┆ Now                 │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Total    ┆ 63      ┆ Now                 │
 ╰──────────┴─────────┴─────────────────────╯
 ```
 
@@ -43,7 +45,7 @@ TODO: Document how to override the config file path.
 ## Example configuration
 
 ```toml
-review_threshold = 100 # The threshold for the review count to be considered high
+review_threshold = 100 # (Optional) The threshold for the review count to be considered high
 
 # Your SRS providers
 [providers."MyProvider"]
@@ -92,6 +94,18 @@ type = "Bunpro" # The type of the provider, this has to be "Bunpro"
 api_key = "your-key" # The API key you get from the Bunpro settings.
 ```
 
+### KameSame
+
+Example config:
+
+```toml
+[providers."KameSame"] # The name of the provider, this can be any string (but has to be unique)
+type = "KameSame" # The type of the provider, this has to
+email = "your@email.com"
+password = "your-password"
+```
+
+
 ## Example uses
 
 TODO: Add some example use cases.
@@ -102,7 +116,6 @@ TODO: Add some example use cases.
 
 ### Roadmap
 
-- [ ] Add support for KameSame
 - [ ] Add support for Anki (SQL) 
 
 ### How to add a new provider
@@ -110,7 +123,8 @@ TODO: Add some example use cases.
 1. Create a new file in the `providers` directory with the name of the provider.
 2. Look at the existing providers for reference, and implement the "DataSource" trait for your provider.
 3. The fields in the Provider struct are the ones that gets parsed from the Config
-4. Add your provider to the `Provider` enum in `src/settings.rs`.
-5. Add your provider to the match statement in `src/main.rs`
-6. Add your provider to the README.md
-7. (Optional) Create a PR :)
+4. Add `pub mod my_provider;` to `src/providers/mod.rs`
+5. Add your provider to the `Provider` enum in `src/settings.rs`.
+6. Add your provider to the match statement in `src/main.rs`
+7. Add your provider to the README.md
+8. (Optional) Create a PR :)

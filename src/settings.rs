@@ -2,18 +2,19 @@ use std::{collections::HashMap, path::PathBuf};
 
 use config::{Config, ConfigError};
 use serde::Deserialize;
+use tracing::error;
 
 use crate::providers::{
-    anki::AnkiProvider, bunpro::BunproProvider, wanikani::WaniKaniProvider, DataSource,
-    ProviderData,
+    anki::AnkiProvider, bunpro::BunproProvider, kamesame::KameSameProvider,
+    wanikani::WaniKaniProvider, DataSource, ProviderData,
 };
 
 fn default_cache_path() -> PathBuf {
     match dirs::cache_dir() {
-        Some(path) => path.join("srscheck-cache.toml"),
+        Some(path) => path.join("srscheck"),
         None => {
-            eprintln!("Could not find cache directory!");
-            eprintln!("Please specify the cache path in the config file");
+            error!("Could not find cache directory!");
+            error!("Please specify the cache directory path in the config file (`cache_path`)");
             std::process::exit(1);
         }
     }
@@ -25,6 +26,7 @@ pub enum Provider {
     WaniKani(WaniKaniProvider),
     Bunpro(BunproProvider),
     Anki(AnkiProvider),
+    KameSame(KameSameProvider),
 }
 
 fn default_review_threshold() -> i32 {
@@ -55,7 +57,7 @@ impl Settings {
 
         // Check if config exists
         if !config_path.exists() {
-            eprintln!("Config file not found at ~/.config/srscheck.toml");
+            error!("Config file not found at {}", config_path.display());
             std::process::exit(1);
         }
 

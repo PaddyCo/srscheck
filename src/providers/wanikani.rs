@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
-use log::{info, warn};
 use serde::Deserialize;
+use tracing::{error, info, instrument, warn};
+
+use crate::cache::Cache;
 
 use super::{DataSource, ProviderData};
 
@@ -32,20 +34,21 @@ struct SummaryResponse {
 }
 
 impl DataSource for WaniKaniProvider {
-    async fn get_data(&self) -> Result<ProviderData, reqwest::Error> {
+    #[instrument(name = "WaniKaniProvider::get_data", skip(self, _cache))]
+    async fn get_data(&self, _cache: Cache) -> Result<ProviderData, reqwest::Error> {
         let client = reqwest::Client::new();
-        info!("[WANIKANI] Fetching data from WaniKani...");
+        info!("Fetching data from WaniKani...");
         let resp = client
             .get("https://api.wanikani.com/v2/summary")
             .bearer_auth(&self.api_key)
             .send()
             .await?;
-        info!("[WANIKANI] Successfully fetched data from WaniKani");
+        info!("Successfully fetched data from WaniKani");
 
         let summary = resp.json::<SummaryResponse>().await?;
         // Get current review count:
         if summary.data.reviews.is_empty() {
-            warn!("[WANIKANI] Reviews returned empty in summary!");
+            error!("Reviews returned empty in summary!");
             return Ok(ProviderData {
                 review_count: 0,
                 next_review: None,

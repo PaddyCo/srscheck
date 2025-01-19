@@ -1,8 +1,11 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::cache::Cache;
+
 pub mod anki;
 pub mod bunpro;
+pub mod kamesame;
 pub mod wanikani;
 
 #[derive(Debug, Serialize)]
@@ -15,5 +18,5 @@ pub struct ProviderData {
 
 pub trait DataSource {
     /// Get the data from the provider
-    async fn get_data(&self) -> Result<ProviderData, reqwest::Error>;
+    async fn get_data(&self, cache: Cache) -> Result<ProviderData, reqwest::Error>;
 }
