@@ -1,6 +1,8 @@
 use std::{collections::HashMap, env};
 
 use chrono::{DateTime, Local, Locale};
+use clap::{command, Parser, ValueEnum};
+use clap_verbosity_flag::Verbosity;
 use comfy_table::{
     modifiers::{UTF8_ROUND_CORNERS, UTF8_SOLID_INNER_BORDERS},
     presets::UTF8_FULL,
@@ -28,12 +30,30 @@ struct Output {
     providers: Vec<ProviderOutput>,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+enum OutputType {
+    Json,
+    Table,
+}
+
+#[derive(Parser, Debug)]
+#[command(version, about)]
+struct Args {
+    #[command(flatten)]
+    verbosity: Verbosity,
+
+    #[arg(short, long, value_enum, default_value = "table")]
+    output: Option<OutputType>,
+
+    #[arg(long, help = "Pretty print JSON output")]
+    pretty: bool,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // TODO: Add support for verbose, which will set level to "info"
-    // TODO: Add support for very verbose, which will set level to "debug"
+    let args = Args::parse();
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
+        .with_max_level(args.verbosity)
         .init();
     let settings = settings::Settings::new()?;
 
@@ -54,9 +74,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         data.insert(name, provider_data);
     }
 
-    // TODO: Add support for different output formats
-    print_table(data, &settings);
-    //print_json(data);
+    match args.output {
+        Some(OutputType::Json) => print_json(data, args.pretty),
+        Some(OutputType::Table) | None => print_table(data, &settings),
+    }
 
     Ok(())
 }
@@ -73,7 +94,7 @@ fn get_time_locale() -> Locale {
     }
 }
 
-fn print_json(data: HashMap<&String, ProviderData>) {
+fn print_json(data: HashMap<&String, ProviderData>, pretty: bool) {
     let mut providers: Vec<ProviderOutput> = Vec::new();
 
     for (name, provider_data) in data {
@@ -86,9 +107,10 @@ fn print_json(data: HashMap<&String, ProviderData>) {
     let output = Output { providers };
 
     // TODO: Handle Timezones?
-    // TODO: Add switch for pretty printing
-    //let json = serde_json::to_string_pretty(&output).unwrap();
-    let json = serde_json::to_string(&output).unwrap();
+    let json = match pretty {
+        true => serde_json::to_string_pretty(&output).unwrap(),
+        false => serde_json::to_string(&output).unwrap(),
+    };
     println!("{}", json);
 }
 

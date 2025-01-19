@@ -17,3 +17,5 @@ tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
 toml = "0.8.19"
 cookie = "0.18.1"
+clap = { version = "4.5.26", features = ["derive"] }
+clap-verbosity-flag = { version = "3.0.2", features = ["tracing"] }
