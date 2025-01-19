@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for (name, provider) in &settings.providers {
         let provider_data = match &provider {
-            settings::Provider::Wanikani(provider) => provider.get_data().await?,
+            settings::Provider::WaniKani(provider) => provider.get_data().await?,
             settings::Provider::Bunpro(provider) => provider.get_data().await?,
             settings::Provider::Anki(provider) => provider.get_data().await?,
         };
@@ -44,8 +44,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // TODO: Add support for different output formats
-    //print_table(data, &settings);
-    print_json(data);
+    print_table(data, &settings);
+    //print_json(data);
 
     Ok(())
 }

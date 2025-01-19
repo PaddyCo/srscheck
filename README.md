@@ -10,6 +10,22 @@ srscheck
 
 TODO: Add more usage information once we have added actual switches to the CLI.
 
+## Example output
+
+```
+╭──────────┬─────────┬─────────────────────╮
+│ System   ┆ Reviews ┆ Next Review         │
+╞══════════╪═════════╪═════════════════════╡
+│ Bunpro   ┆ 0       ┆ 2025-01-19 12:00:00 │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Anki     ┆ 0       ┆ N/A                 │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ WaniKani ┆ 0       ┆ 2025-01-19 15:00:00 │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Total    ┆ 0       ┆ 2025-01-19 12:00:00 │
+╰──────────┴─────────┴─────────────────────╯
+```
+
 ## Configuration
 
 By default it will look for the config file `srscheck.toml` the following directories:
@@ -58,13 +74,13 @@ api_key = "My secret api key" # OPTIONAL: the API key you set in the AnkiConnect
 deck = "Japanese" 
 ```
 
-### Wanikani
+### WaniKani
 
 Example config:
 ```toml
-[providers."Wanikani"] # The name of the provider, this can be any string (but has to be unique)
-type = "Wanikani" # The type of the provider, this has to be "Wanikani"
-api_key = "your-key" # The API key you get from the Wanikani settings. Read-only access is enough.
+[providers."WaniKani"] # The name of the provider, this can be any string (but has to be unique)
+type = "WaniKani" # The type of the provider, this has to be "WaniKani"
+api_key = "your-key" # The API key you get from the WaniKani settings. Read-only access is enough.
 ```
 
 ### Bunpro

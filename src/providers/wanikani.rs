@@ -5,7 +5,7 @@ use serde::Deserialize;
 use super::{DataSource, ProviderData};
 
 #[derive(Debug, Deserialize)]
-pub struct WanikaniProvider {
+pub struct WaniKaniProvider {
     api_key: String,
 }
 
@@ -31,7 +31,7 @@ struct SummaryResponse {
     data: SummaryData,
 }
 
-impl DataSource for WanikaniProvider {
+impl DataSource for WaniKaniProvider {
     async fn get_data(&self) -> Result<ProviderData, reqwest::Error> {
         let client = reqwest::Client::new();
         info!("[WANIKANI] Fetching data from WaniKani...");

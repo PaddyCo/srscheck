@@ -4,7 +4,7 @@ use config::{Config, ConfigError};
 use serde::Deserialize;
 
 use crate::providers::{
-    anki::AnkiProvider, bunpro::BunproProvider, wanikani::WanikaniProvider, DataSource,
+    anki::AnkiProvider, bunpro::BunproProvider, wanikani::WaniKaniProvider, DataSource,
     ProviderData,
 };
 
@@ -22,7 +22,7 @@ fn default_cache_path() -> PathBuf {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum Provider {
-    Wanikani(WanikaniProvider),
+    WaniKani(WaniKaniProvider),
     Bunpro(BunproProvider),
     Anki(AnkiProvider),
 }
