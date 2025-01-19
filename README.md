@@ -1,18 +1,43 @@
 # srscheck
 
-CLI tool for quickly getting the status of multiple SRS systems.
+CLI tool for quickly getting the review counts from multiple SRS systems.
+
+## Note
+
+- This is a work in progress, and mostly built for personal use. (But should be usable)
+
+- Only tested on Linux at the moment, but should be painless to get running on other platforms as I'm not using any platform-specific code (as far as I know).
+
+- There is minimal caching, so it will make a request to each provider every time it is run, so be careful with the rate limits of the APIs you are using.
+
+- Error handling is minimal at the moment, so if something goes wrong, a provider might silently fail and return a review count of 0. (It will log a warning to the console, but that's not helpful if you are running this in a script for example)
+
 
 ## Usage
 
 ```shell
-srscheck
+$ srscheck --help
+
+Usage: srscheck [OPTIONS]
+
+Options:
+  -v, --verbose...                 Increase logging verbosity
+  -q, --quiet...                   Decrease logging verbosity
+  -o, --output <OUTPUT>            [default: table] [possible values: json, table]
+      --pretty                     Pretty print JSON output
+      --config-path <CONFIG_PATH>  Path to the config file
+  -h, --help                       Print help
+  -V, --version                    Print version
 ```
 
-TODO: Add more usage information once we have added actual switches to the CLI.
+Increase the verbosity with additional `-v` flags. (e.g. `-vv`, `-vvv`, etc)
+
 
 ## Example output
 
 ```
+$ srscheck
+
 ╭──────────┬─────────┬─────────────────────╮
 │ System   ┆ Reviews ┆ Next Review         │
 ╞══════════╪═════════╪═════════════════════╡
@@ -26,6 +51,35 @@ TODO: Add more usage information once we have added actual switches to the CLI.
 ├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
 │ Total    ┆ 63      ┆ Now                 │
 ╰──────────┴─────────┴─────────────────────╯
+```
+
+```shell
+$ srscheck -o json --pretty
+
+{
+  "providers": [
+    {
+      "name": "WaniKani",
+      "review_count": 0,
+      "next_review": "2025-01-19T22:00:00Z"
+    },
+    {
+      "name": "Bunpro",
+      "review_count": 0,
+      "next_review": "2025-01-19T16:00:00Z"
+    },
+    {
+      "name": "KameSame",
+      "review_count": 0,
+      "next_review": null
+    },
+    {
+      "name": "Anki",
+      "review_count": 0,
+      "next_review": null
+    }
+  ]
+}
 ```
 
 ## Configuration
@@ -116,6 +170,9 @@ TODO: Add some example use cases.
 
 ### Roadmap
 
+- [ ] Add build pipeline
+- [ ] Better error handling for when a provider is not configured correctly or not responding. At the moment we simply return a review count of 0.
+- [ ] More data
 - [ ] Add support for Anki (SQL) 
 
 ### How to add a new provider

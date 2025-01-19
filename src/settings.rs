@@ -45,8 +45,7 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn new() -> Result<Self, ConfigError> {
-        // TODO: Allow the user to specify the config path
+    pub fn from_default_path() -> Result<Self, ConfigError> {
         let config_path = match dirs::config_dir() {
             Some(path) => path.join("srscheck.toml"),
             None => {
@@ -54,7 +53,10 @@ impl Settings {
                 std::process::exit(1);
             }
         };
+        Settings::new(config_path)
+    }
 
+    pub fn new(config_path: PathBuf) -> Result<Self, ConfigError> {
         // Check if config exists
         if !config_path.exists() {
             error!("Config file not found at {}", config_path.display());

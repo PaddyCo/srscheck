@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env};
+use std::{collections::HashMap, env, path::PathBuf};
 
 use chrono::{DateTime, Local, Locale};
 use clap::{command, Parser, ValueEnum};
@@ -47,6 +47,9 @@ struct Args {
 
     #[arg(long, help = "Pretty print JSON output")]
     pretty: bool,
+
+    #[arg(long, help = "Path to the config file")]
+    config_path: Option<PathBuf>,
 }
 
 #[tokio::main]
@@ -55,7 +58,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_max_level(args.verbosity)
         .init();
-    let settings = settings::Settings::new()?;
+
+    let settings = match args.config_path {
+        Some(path) => settings::Settings::new(path)?,
+        None => settings::Settings::from_default_path()?,
+    };
 
     let mut data: HashMap<&String, ProviderData> = HashMap::new();
 
