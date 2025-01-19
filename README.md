@@ -1,6 +1,6 @@
 # srscheck
 
-CLI tool for quickly getting the review counts from multiple SRS systems.
+CLI tool for quickly getting the status of multiple SRS (Spaced Repetition System) systems.
 
 ## Note
 
