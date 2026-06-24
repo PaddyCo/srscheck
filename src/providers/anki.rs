@@ -1,10 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info, instrument, span, warn};
 
-use crate::cache::Cache;
+use crate::cache::{Cache, DATA_KEY};
 
 use super::{DataSource, ProviderData};
 
@@ -18,6 +17,9 @@ pub struct AnkiProvider {
     api_key: Option<String>,
     /// URL to open to do reviews
     action_url: Option<String>,
+    /// How long (in seconds) to cache API results for before fetching fresh data
+    #[serde(default = "crate::cache::default_cache_expiry::<10>")]
+    cache_expiry: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -55,50 +57,54 @@ struct DeckStatsParams {
 impl DataSource for AnkiProvider {
     #[instrument(name = "AnkiProvider::get_data", skip(self, cache))]
     async fn get_data(&self, cache: Cache) -> Result<ProviderData, reqwest::Error> {
-        info!(
-            "Fetching data from AnkiConnect for deck \"{}\"...",
-            &self.deck
-        );
+        let url = self.url.clone();
+        let deck = self.deck.clone();
+        let api_key = self.api_key.clone();
+        let ttl = Duration::from_secs(self.cache_expiry);
 
-        let client = reqwest::Client::new();
-        let request: DeckStatsRequest = DeckStatsRequest {
-            action: "getDeckStats".to_string(),
-            version: 6,
-            key: self.api_key.clone(),
-            params: DeckStatsParams {
-                decks: vec![self.deck.clone()],
-            },
-        };
+        let mut data = cache
+            .get_or_fetch(DATA_KEY, ttl, || async move {
+                info!("Fetching data from AnkiConnect for deck \"{}\"...", &deck);
 
-        let resp = client
-            .post(&self.url)
-            .body(serde_json::to_string(&request).unwrap())
-            .send()
+                let client = reqwest::Client::new();
+                let request: DeckStatsRequest = DeckStatsRequest {
+                    action: "getDeckStats".to_string(),
+                    version: 6,
+                    key: api_key,
+                    params: DeckStatsParams {
+                        decks: vec![deck.clone()],
+                    },
+                };
+
+                let resp = client
+                    .post(&url)
+                    .body(serde_json::to_string(&request).unwrap())
+                    .send()
+                    .await?;
+                info!("Successfully fetched data from AnkiConnect for deck {}", &deck);
+
+                let response = resp.json::<DeckStatsResponse>().await?;
+
+                let review_count = match response.result {
+                    None => {
+                        error!("AnkiConnect returned an error: {}", response.error.unwrap());
+                        0
+                    }
+                    Some(result) => {
+                        let (_, data) = result.iter().next().unwrap();
+                        data.review_count + data.learn_count
+                    }
+                };
+
+                Ok(ProviderData {
+                    review_count,
+                    next_review: None,
+                    action_url: None,
+                })
+            })
             .await?;
-        info!(
-            "Successfully fetched data from AnkiConnect for deck {}",
-            &self.deck
-        );
 
-        let response = resp.json::<DeckStatsResponse>().await?;
-
-        match response.result {
-            None => {
-                error!("AnkiConnect returned an error: {}", response.error.unwrap());
-                Ok(ProviderData {
-                    review_count: 0,
-                    next_review: None,
-                    action_url: self.action_url.clone(),
-                })
-            }
-            Some(result) => {
-                let (_, data) = result.iter().next().unwrap();
-                Ok(ProviderData {
-                    review_count: data.review_count + data.learn_count,
-                    next_review: None,
-                    action_url: self.action_url.clone(),
-                })
-            }
-        }
+        data.action_url = self.action_url.clone();
+        Ok(data)
     }
 }

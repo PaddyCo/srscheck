@@ -1,8 +1,10 @@
-use chrono::{DateTime, Utc};
+use std::time::Duration;
+
+use chrono::DateTime;
 use serde::Deserialize;
 use tracing::{info, instrument, warn};
 
-use crate::cache::Cache;
+use crate::cache::{Cache, DATA_KEY};
 
 use super::{DataSource, ProviderData};
 
@@ -16,6 +18,9 @@ pub struct BunproProvider {
     /// URL to open to do reviews
     #[serde(default = "default_action_url")]
     action_url: Option<String>,
+    /// How long (in seconds) to cache API results for before fetching fresh data
+    #[serde(default = "crate::cache::default_cache_expiry::<300>")]
+    cache_expiry: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -36,28 +41,37 @@ struct StudyQueueResponse {
 }
 
 impl DataSource for BunproProvider {
-    #[instrument(name = "BunproProvider::get_data", skip(self, _cache))]
-    async fn get_data(&self, _cache: Cache) -> Result<ProviderData, reqwest::Error> {
-        let client = reqwest::Client::new();
-        info!("Fetching data from Bunpro...");
+    #[instrument(name = "BunproProvider::get_data", skip(self, cache))]
+    async fn get_data(&self, cache: Cache) -> Result<ProviderData, reqwest::Error> {
+        let api_key = self.api_key.clone();
+        let ttl = Duration::from_secs(self.cache_expiry);
 
-        let url = format!("https://bunpro.jp/api/user/{}/study_queue", self.api_key);
+        let mut data = cache
+            .get_or_fetch(DATA_KEY, ttl, || async move {
+                let client = reqwest::Client::new();
+                info!("Fetching data from Bunpro...");
 
-        let resp = client.get(url).send().await?;
-        info!("Successfully fetched data from Bunpro");
+                let url = format!("https://bunpro.jp/api/user/{}/study_queue", api_key);
 
-        let study_queue = resp.json::<StudyQueueResponse>().await?;
+                let resp = client.get(url).send().await?;
+                info!("Successfully fetched data from Bunpro");
 
-        let data = study_queue.requested_information;
+                let study_queue = resp.json::<StudyQueueResponse>().await?;
+                let data = study_queue.requested_information;
 
-        Ok(ProviderData {
-            review_count: data.reviews_available,
-            next_review: Some(
-                DateTime::from_timestamp(data.next_review_date, 0)
-                    .unwrap()
-                    .to_utc(),
-            ),
-            action_url: self.action_url.clone(),
-        })
+                Ok(ProviderData {
+                    review_count: data.reviews_available,
+                    next_review: Some(
+                        DateTime::from_timestamp(data.next_review_date, 0)
+                            .unwrap()
+                            .to_utc(),
+                    ),
+                    action_url: None,
+                })
+            })
+            .await?;
+
+        data.action_url = self.action_url.clone();
+        Ok(data)
     }
 }

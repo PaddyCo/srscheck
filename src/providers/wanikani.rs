@@ -1,8 +1,10 @@
+use std::time::Duration;
+
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use tracing::{error, info, instrument, warn};
 
-use crate::cache::Cache;
+use crate::cache::{Cache, DATA_KEY};
 
 use super::{DataSource, ProviderData};
 
@@ -16,6 +18,9 @@ pub struct WaniKaniProvider {
     /// URL to open to do reviews
     #[serde(default = "default_action_url")]
     action_url: Option<String>,
+    /// How long (in seconds) to cache API results for before fetching fresh data
+    #[serde(default = "crate::cache::default_cache_expiry::<300>")]
+    cache_expiry: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -41,41 +46,51 @@ struct SummaryResponse {
 }
 
 impl DataSource for WaniKaniProvider {
-    #[instrument(name = "WaniKaniProvider::get_data", skip(self, _cache))]
-    async fn get_data(&self, _cache: Cache) -> Result<ProviderData, reqwest::Error> {
-        let client = reqwest::Client::new();
-        info!("Fetching data from WaniKani...");
-        let resp = client
-            .get("https://api.wanikani.com/v2/summary")
-            .bearer_auth(&self.api_key)
-            .send()
+    #[instrument(name = "WaniKaniProvider::get_data", skip(self, cache))]
+    async fn get_data(&self, cache: Cache) -> Result<ProviderData, reqwest::Error> {
+        let api_key = self.api_key.clone();
+        let ttl = Duration::from_secs(self.cache_expiry);
+
+        let mut data = cache
+            .get_or_fetch(DATA_KEY, ttl, || async move {
+                let client = reqwest::Client::new();
+                info!("Fetching data from WaniKani...");
+                let resp = client
+                    .get("https://api.wanikani.com/v2/summary")
+                    .bearer_auth(&api_key)
+                    .send()
+                    .await?;
+                info!("Successfully fetched data from WaniKani");
+
+                let summary = resp.json::<SummaryResponse>().await?;
+                // Get current review count:
+                if summary.data.reviews.is_empty() {
+                    error!("Reviews returned empty in summary!");
+                    return Ok(ProviderData {
+                        review_count: 0,
+                        next_review: None,
+                        action_url: None,
+                    });
+                }
+
+                let review_count = match summary.data.reviews.len() {
+                    0 => 0,
+                    _ => summary.data.reviews[0].subject_ids.len(),
+                };
+
+                Ok(ProviderData {
+                    review_count: review_count as i32,
+                    next_review: Some(
+                        DateTime::parse_from_rfc3339(&summary.data.next_reviews_at)
+                            .unwrap()
+                            .with_timezone(&Utc),
+                    ),
+                    action_url: None,
+                })
+            })
             .await?;
-        info!("Successfully fetched data from WaniKani");
 
-        let summary = resp.json::<SummaryResponse>().await?;
-        // Get current review count:
-        if summary.data.reviews.is_empty() {
-            error!("Reviews returned empty in summary!");
-            return Ok(ProviderData {
-                review_count: 0,
-                next_review: None,
-                action_url: self.action_url.clone(),
-            });
-        }
-
-        let review_count = match summary.data.reviews.len() {
-            0 => 0,
-            _ => summary.data.reviews[0].subject_ids.len(),
-        };
-
-        Ok(ProviderData {
-            review_count: review_count as i32,
-            next_review: Some(
-                DateTime::parse_from_rfc3339(&summary.data.next_reviews_at)
-                    .unwrap()
-                    .with_timezone(&Utc),
-            ),
-            action_url: self.action_url.clone(),
-        })
+        data.action_url = self.action_url.clone();
+        Ok(data)
     }
 }

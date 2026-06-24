@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use chrono::{DateTime, Utc};
 use jaq_core::load::{Arena, File, Loader};
@@ -8,7 +8,7 @@ use reqwest::Method;
 use serde::Deserialize;
 use tracing::{error, info, instrument, warn};
 
-use crate::cache::Cache;
+use crate::cache::{Cache, DATA_KEY};
 
 use super::{DataSource, ProviderData};
 
@@ -33,6 +33,9 @@ pub struct HttpProvider {
     next_review_path: Option<String>,
     /// URL to open to do reviews
     action_url: Option<String>,
+    /// How long (in seconds) to cache API results for before fetching fresh data
+    #[serde(default = "crate::cache::default_cache_expiry::<60>")]
+    cache_expiry: u64,
 }
 
 /// Run a jq filter against a value, returning its first output (if any).
@@ -87,72 +90,86 @@ fn val_to_next_review(val: &Val) -> Option<DateTime<Utc>> {
 }
 
 impl DataSource for HttpProvider {
-    #[instrument(name = "HttpProvider::get_data", skip(self, _cache))]
-    async fn get_data(&self, _cache: Cache) -> Result<ProviderData, reqwest::Error> {
-        let client = reqwest::Client::new();
+    #[instrument(name = "HttpProvider::get_data", skip(self, cache))]
+    async fn get_data(&self, cache: Cache) -> Result<ProviderData, reqwest::Error> {
+        let url = self.url.clone();
+        let method = self.method.clone();
+        let headers = self.headers.clone();
+        let review_count_path = self.review_count_path.clone();
+        let next_review_path = self.next_review_path.clone();
+        let ttl = Duration::from_secs(self.cache_expiry);
 
-        let method = Method::from_bytes(self.method.as_bytes()).unwrap_or_else(|_| {
-            warn!("Invalid HTTP method \"{}\", defaulting to GET", self.method);
-            Method::GET
-        });
+        let mut data = cache
+            .get_or_fetch(DATA_KEY, ttl, || async move {
+                let client = reqwest::Client::new();
 
-        info!("Fetching data from {}...", self.url);
-
-        let mut request = client.request(method, &self.url);
-        for (key, value) in &self.headers {
-            request = request.header(key, value);
-        }
-
-        let resp = request.send().await?;
-        let body = resp.bytes().await?;
-
-        let value = match read::parse_single(&body) {
-            Ok(value) => value,
-            Err(e) => {
-                error!("Failed to parse response from {} as JSON: {}", self.url, e);
-                return Ok(ProviderData {
-                    review_count: 0,
-                    next_review: None,
-                    action_url: self.action_url.clone(),
+                let parsed_method = Method::from_bytes(method.as_bytes()).unwrap_or_else(|_| {
+                    warn!("Invalid HTTP method \"{}\", defaulting to GET", method);
+                    Method::GET
                 });
-            }
-        };
 
-        let review_count = match run_jq(&self.review_count_path, &value) {
-            Ok(Some(val)) => val_to_review_count(&val),
-            Ok(None) => {
-                warn!(
-                    "review_count_path \"{}\" did not match any value",
-                    self.review_count_path
-                );
-                None
-            }
-            Err(e) => {
-                error!(
-                    "Failed to evaluate review_count_path \"{}\": {}",
-                    self.review_count_path, e
-                );
-                None
-            }
-        };
+                info!("Fetching data from {}...", url);
 
-        let next_review = match &self.next_review_path {
-            Some(path) => match run_jq(path, &value) {
-                Ok(Some(val)) => val_to_next_review(&val),
-                Ok(None) => None,
-                Err(e) => {
-                    warn!("Failed to evaluate next_review_path \"{}\": {}", path, e);
-                    None
+                let mut request = client.request(parsed_method, &url);
+                for (key, value) in &headers {
+                    request = request.header(key, value);
                 }
-            },
-            None => None,
-        };
 
-        Ok(ProviderData {
-            review_count: review_count.unwrap_or(0),
-            next_review,
-            action_url: self.action_url.clone(),
-        })
+                let resp = request.send().await?;
+                let body = resp.bytes().await?;
+
+                let value = match read::parse_single(&body) {
+                    Ok(value) => value,
+                    Err(e) => {
+                        error!("Failed to parse response from {} as JSON: {}", url, e);
+                        return Ok(ProviderData {
+                            review_count: 0,
+                            next_review: None,
+                            action_url: None,
+                        });
+                    }
+                };
+
+                let review_count = match run_jq(&review_count_path, &value) {
+                    Ok(Some(val)) => val_to_review_count(&val),
+                    Ok(None) => {
+                        warn!(
+                            "review_count_path \"{}\" did not match any value",
+                            review_count_path
+                        );
+                        None
+                    }
+                    Err(e) => {
+                        error!(
+                            "Failed to evaluate review_count_path \"{}\": {}",
+                            review_count_path, e
+                        );
+                        None
+                    }
+                };
+
+                let next_review = match &next_review_path {
+                    Some(path) => match run_jq(path, &value) {
+                        Ok(Some(val)) => val_to_next_review(&val),
+                        Ok(None) => None,
+                        Err(e) => {
+                            warn!("Failed to evaluate next_review_path \"{}\": {}", path, e);
+                            None
+                        }
+                    },
+                    None => None,
+                };
+
+                Ok(ProviderData {
+                    review_count: review_count.unwrap_or(0),
+                    next_review,
+                    action_url: None,
+                })
+            })
+            .await?;
+
+        data.action_url = self.action_url.clone();
+        Ok(data)
     }
 }
 

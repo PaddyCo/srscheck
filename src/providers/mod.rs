@@ -9,7 +9,7 @@ pub mod http;
 pub mod kamesame;
 pub mod wanikani;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderData {
     /// Number of reviews available
     pub review_count: i32,

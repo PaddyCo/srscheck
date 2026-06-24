@@ -8,7 +8,7 @@ CLI tool for quickly getting the status of multiple SRS (Spaced Repetition Syste
 
 - Only tested on Linux at the moment, but should be painless to get running on other platforms as I'm not using any platform-specific code (as far as I know).
 
-- There is minimal caching, so it will make a request to each provider every time it is run, so be careful with the rate limits of the APIs you are using.
+- API responses are cached to disk per-provider (in `cache_path`), so running the tool repeatedly within the cache window won't hit the provider's API again. Each provider has a default cache expiration (see [Supported providers](#supported-providers)), which can be overridden per-provider with `cache_expiry` (in seconds).
 
 - Error handling is minimal at the moment, so if something goes wrong, a provider might silently fail and return a review count of 0. (It will log a warning to the console, but that's not helpful if you are running this in a script for example)
 
@@ -133,6 +133,7 @@ api_key = "My secret api key" # OPTIONAL: the API key you set in the AnkiConnect
 # If you want to target a subdeck, you can use the full path, e.g. "Japanese::Kanji"
 deck = "Japanese" 
 action_url = "http://localhost:8765" # OPTIONAL: URL opened to do reviews. No default for Anki since it's self-hosted.
+cache_expiry = 10 # OPTIONAL: How long (in seconds) to cache API results for. Defaults to 10.
 ```
 
 ### WaniKani
@@ -143,6 +144,7 @@ Example config:
 type = "WaniKani" # The type of the provider, this has to be "WaniKani"
 api_key = "your-key" # The API key you get from the WaniKani settings. Read-only access is enough.
 action_url = "https://www.wanikani.com/" # OPTIONAL: URL opened to do reviews. Defaults to "https://www.wanikani.com/".
+cache_expiry = 300 # OPTIONAL: How long (in seconds) to cache API results for. Defaults to 300 (5 minutes).
 ```
 
 ### Bunpro
@@ -153,6 +155,7 @@ Example config:
 type = "Bunpro" # The type of the provider, this has to be "Bunpro"
 api_key = "your-key" # The API key you get from the Bunpro settings.
 action_url = "https://bunpro.jp/" # OPTIONAL: URL opened to do reviews. Defaults to "https://bunpro.jp/".
+cache_expiry = 300 # OPTIONAL: How long (in seconds) to cache API results for. Defaults to 300 (5 minutes).
 ```
 
 ### KameSame
@@ -165,6 +168,7 @@ type = "KameSame" # The type of the provider, this has to
 email = "your@email.com"
 password = "your-password"
 action_url = "https://www.kamesame.com/" # OPTIONAL: URL opened to do reviews. Defaults to "https://www.kamesame.com/".
+cache_expiry = 300 # OPTIONAL: How long (in seconds) to cache API results for. Defaults to 300 (5 minutes).
 ```
 
 ### Http (custom provider)
@@ -195,6 +199,7 @@ review_count_path = ".reviews.pending_reviews" # jq filter used to extract the r
 next_review_path = ".reviews.next_review" # OPTIONAL: jq filter used to extract the next review date.
 # The matched value can be either an RFC 3339 string (like above) or a Unix timestamp, e.g. ".reviews.next_review_epoch"
 action_url = "https://example.com/" # OPTIONAL: URL opened to do reviews. No default since it's a custom provider.
+cache_expiry = 60 # OPTIONAL: How long (in seconds) to cache API results for. Defaults to 60 (1 minute).
 ```
 
 

@@ -12,13 +12,15 @@ use reqwest::{
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, instrument, warn};
 
-use crate::cache::Cache;
+use crate::cache::{Cache, DATA_KEY};
 
 use super::{DataSource, ProviderData};
 
 fn default_action_url() -> Option<String> {
     Some("https://www.kamesame.com/".to_string())
 }
+
+const SESSION_KEY: &str = "session";
 
 #[derive(Debug, Deserialize)]
 pub struct KameSameProvider {
@@ -27,6 +29,9 @@ pub struct KameSameProvider {
     /// URL to open to do reviews
     #[serde(default = "default_action_url")]
     action_url: Option<String>,
+    /// How long (in seconds) to cache API results for before fetching fresh data
+    #[serde(default = "crate::cache::default_cache_expiry::<300>")]
+    cache_expiry: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -61,22 +66,17 @@ struct ReviewsStatus {
 impl DataSource for KameSameProvider {
     #[instrument(name = "KameSameProvider::get_data", skip(self, cache))]
     async fn get_data(&self, cache: Cache) -> Result<ProviderData, reqwest::Error> {
-        let cache_data = cache.read::<KameSameCache>().unwrap_or(None);
+        let valid_session = cache
+            .read::<KameSameCache>(SESSION_KEY)
+            .unwrap_or(None)
+            .filter(|cache_data| cache_data.session_expiry > SystemTime::now());
+        let has_session = valid_session.is_some();
 
-        let has_session = match &cache_data {
-            Some(cache_data) => cache_data.session_expiry > SystemTime::now(),
-            None => false,
-        };
         let jar = Jar::default();
-        let cookie = match has_session {
-            true => Some(format!("_kamesame_session={}", cache_data.unwrap().session)),
-            false => None,
-        };
-
-        if cookie.is_some() {
+        if let Some(cache_data) = &valid_session {
             debug!("Adding session cookie to cookie jar...");
             jar.add_cookie_str(
-                &cookie.unwrap(),
+                &format!("_kamesame_session={}", cache_data.session),
                 &Url::from_str("https://www.kamesame.com").unwrap(),
             );
         }
@@ -99,11 +99,11 @@ impl DataSource for KameSameProvider {
                 .send()
                 .await?;
 
-            let headers = &login.headers().clone();
-            let success = &login.status().is_success();
-            let login_response = &login.json::<LoginResponseBody>().await?;
+            let success = login.status().is_success();
+            let headers = login.headers().clone();
+            let login_response = login.json::<LoginResponseBody>().await?;
 
-            if !success || login_response.error_messages.len() > 0 {
+            if !success || !login_response.error_messages.is_empty() {
                 error!("Login failed: {:?}", &login_response.error_messages);
                 return Ok(ProviderData {
                     review_count: 0,
@@ -130,20 +130,30 @@ impl DataSource for KameSameProvider {
                         .unwrap(),
                 },
             };
-            cache.write::<KameSameCache>(cache_data).unwrap();
+            if let Err(err) = cache.write(SESSION_KEY, cache_data) {
+                warn!("Failed to write session cache: {}", err);
+            }
         }
 
-        let resp = client
-            .get("https://www.kamesame.com/api/reviews/status")
-            .send()
+        let ttl = Duration::from_secs(self.cache_expiry);
+        let mut data = cache
+            .get_or_fetch(DATA_KEY, ttl, || async move {
+                let resp = client
+                    .get("https://www.kamesame.com/api/reviews/status")
+                    .send()
+                    .await?;
+
+                let status = resp.json::<StatusResponse>().await?;
+
+                Ok(ProviderData {
+                    review_count: status.reviews_status.ready_for_review,
+                    next_review: None,
+                    action_url: None,
+                })
+            })
             .await?;
 
-        let status = resp.json::<StatusResponse>().await?;
-
-        return Ok(ProviderData {
-            review_count: status.reviews_status.ready_for_review,
-            next_review: None,
-            action_url: self.action_url.clone(),
-        });
+        data.action_url = self.action_url.clone();
+        Ok(data)
     }
 }
