@@ -6,7 +6,7 @@ use tracing::error;
 
 use crate::providers::{
     anki::AnkiProvider, bunpro::BunproProvider, http::HttpProvider, kamesame::KameSameProvider,
-    wanikani::WaniKaniProvider, DataSource, ProviderData,
+    nativshark::NativSharkProvider, wanikani::WaniKaniProvider, DataSource, ProviderData,
 };
 
 fn default_cache_path() -> PathBuf {
@@ -27,6 +27,7 @@ pub enum Provider {
     Bunpro(BunproProvider),
     Anki(AnkiProvider),
     KameSame(KameSameProvider),
+    NativShark(NativSharkProvider),
     Http(HttpProvider),
 }
 

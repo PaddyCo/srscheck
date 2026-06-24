@@ -171,6 +171,23 @@ action_url = "https://www.kamesame.com/" # OPTIONAL: URL opened to do reviews. D
 cache_expiry = 300 # OPTIONAL: How long (in seconds) to cache API results for. Defaults to 300 (5 minutes).
 ```
 
+### NativShark
+
+Example config:
+
+```toml
+[providers."NativShark"] # The name of the provider, this can be any string (but has to be unique)
+type = "NativShark" # The type of the provider, this has to be "NativShark"
+email = "your@email.com"
+password = "your-password"
+action_url = "https://app.nativshark.com/" # OPTIONAL: URL opened to do reviews. Defaults to "https://app.nativshark.com/".
+cache_expiry = 300 # OPTIONAL: How long (in seconds) to cache API results for. Defaults to 300 (5 minutes).
+```
+
+NativShark's API uses a login token instead of an API key. `srscheck` logs in with your email/password
+and caches the resulting token (it's valid for about a month), automatically logging in again once it expires
+or is rejected by the API.
+
 ### Http (custom provider)
 
 Use this to hook up any SRS that exposes a JSON HTTP API but isn't natively supported.

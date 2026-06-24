@@ -7,6 +7,7 @@ pub mod anki;
 pub mod bunpro;
 pub mod http;
 pub mod kamesame;
+pub mod nativshark;
 pub mod wanikani;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
