@@ -5,6 +5,7 @@ use crate::cache::Cache;
 
 pub mod anki;
 pub mod bunpro;
+pub mod http;
 pub mod kamesame;
 pub mod wanikani;
 

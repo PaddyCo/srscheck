@@ -167,6 +167,36 @@ password = "your-password"
 action_url = "https://www.kamesame.com/" # OPTIONAL: URL opened to do reviews. Defaults to "https://www.kamesame.com/".
 ```
 
+### Http (custom provider)
+
+Use this to hook up any SRS that exposes a JSON HTTP API but isn't natively supported.
+`review_count_path` and `next_review_path` are [jq](https://jqlang.github.io/jq/manual/) filters
+(evaluated with [jaq](https://github.com/01mf02/jaq)) run against the JSON response to pick out the
+fields you need.
+
+Given a response like:
+```json
+{
+  "reviews": {
+    "pending_reviews": 120,
+    "next_review": "2023-09-15T12:00:00Z"
+  }
+}
+```
+
+Example config:
+```toml
+[providers."MySrs"] # The name of the provider, this can be any string (but has to be unique)
+type = "Http" # The type of the provider, this has to be "Http"
+url = "https://example.com/api/reviews" # The URL to send the request to
+method = "GET" # OPTIONAL: HTTP method to use (GET, POST, PUT, DELETE, etc.). Defaults to "GET".
+headers = { Authorization = "Bearer my-token" } # OPTIONAL: headers to include in the request
+review_count_path = ".reviews.pending_reviews" # jq filter used to extract the review count
+next_review_path = ".reviews.next_review" # OPTIONAL: jq filter used to extract the next review date.
+# The matched value can be either an RFC 3339 string (like above) or a Unix timestamp, e.g. ".reviews.next_review_epoch"
+action_url = "https://example.com/" # OPTIONAL: URL opened to do reviews. No default since it's a custom provider.
+```
+
 
 ## Example uses
 

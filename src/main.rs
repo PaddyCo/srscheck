@@ -76,6 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             settings::Provider::Bunpro(provider) => provider.get_data(cache).await?,
             settings::Provider::Anki(provider) => provider.get_data(cache).await?,
             settings::Provider::KameSame(provider) => provider.get_data(cache).await?,
+            settings::Provider::Http(provider) => provider.get_data(cache).await?,
         };
 
         data.insert(name, provider_data);

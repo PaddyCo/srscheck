@@ -5,7 +5,7 @@ use serde::Deserialize;
 use tracing::error;
 
 use crate::providers::{
-    anki::AnkiProvider, bunpro::BunproProvider, kamesame::KameSameProvider,
+    anki::AnkiProvider, bunpro::BunproProvider, http::HttpProvider, kamesame::KameSameProvider,
     wanikani::WaniKaniProvider, DataSource, ProviderData,
 };
 
@@ -27,6 +27,7 @@ pub enum Provider {
     Bunpro(BunproProvider),
     Anki(AnkiProvider),
     KameSame(KameSameProvider),
+    Http(HttpProvider),
 }
 
 fn default_review_threshold() -> i32 {
