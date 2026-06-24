@@ -38,19 +38,19 @@ Increase the verbosity with additional `-v` flags. (e.g. `-vv`, `-vvv`, etc)
 ```
 $ srscheck
 
-╭──────────┬─────────┬─────────────────────╮
-│ System   ┆ Reviews ┆ Next Review         │
-╞══════════╪═════════╪═════════════════════╡
-│ WaniKani ┆ 0       ┆ 2025-01-19 15:00:00 │
-├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
-│ Anki     ┆ 12      ┆ Now                 │
-├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
-│ KameSame ┆ 42      ┆ Now                 │
-├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
-│ Bunpro   ┆ 9       ┆ Now                 │
-├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
-│ Total    ┆ 63      ┆ Now                 │
-╰──────────┴─────────┴─────────────────────╯
+╭──────────┬─────────┬─────────────────────┬───────────────────────────╮
+│ System   ┆ Reviews ┆ Next Review         ┆ URL                       │
+╞══════════╪═════════╪═════════════════════╪═══════════════════════════╡
+│ WaniKani ┆ 0       ┆ 2025-01-19 15:00:00 ┆ https://www.wanikani.com/ │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Anki     ┆ 12      ┆ Now                 ┆                           │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ KameSame ┆ 42      ┆ Now                 ┆ https://www.kamesame.com/ │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Bunpro   ┆ 9       ┆ Now                 ┆ https://bunpro.jp/        │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Total    ┆ 63      ┆ Now                 ┆                           │
+╰──────────┴─────────┴─────────────────────┴───────────────────────────╯
 ```
 
 ```shell
@@ -61,22 +61,26 @@ $ srscheck -o json --pretty
     {
       "name": "WaniKani",
       "review_count": 0,
-      "next_review": "2025-01-19T22:00:00Z"
+      "next_review": "2025-01-19T22:00:00Z",
+      "action_url": "https://www.wanikani.com/"
     },
     {
       "name": "Bunpro",
       "review_count": 0,
-      "next_review": "2025-01-19T16:00:00Z"
+      "next_review": "2025-01-19T16:00:00Z",
+      "action_url": "https://bunpro.jp/"
     },
     {
       "name": "KameSame",
       "review_count": 0,
-      "next_review": null
+      "next_review": null,
+      "action_url": "https://www.kamesame.com/"
     },
     {
       "name": "Anki",
       "review_count": 0,
-      "next_review": null
+      "next_review": null,
+      "action_url": null
     }
   ]
 }
@@ -128,6 +132,7 @@ api_key = "My secret api key" # OPTIONAL: the API key you set in the AnkiConnect
 # You can target a parent deck, and it will include the counts of all subdecks.
 # If you want to target a subdeck, you can use the full path, e.g. "Japanese::Kanji"
 deck = "Japanese" 
+action_url = "http://localhost:8765" # OPTIONAL: URL opened to do reviews. No default for Anki since it's self-hosted.
 ```
 
 ### WaniKani
@@ -137,6 +142,7 @@ Example config:
 [providers."WaniKani"] # The name of the provider, this can be any string (but has to be unique)
 type = "WaniKani" # The type of the provider, this has to be "WaniKani"
 api_key = "your-key" # The API key you get from the WaniKani settings. Read-only access is enough.
+action_url = "https://www.wanikani.com/" # OPTIONAL: URL opened to do reviews. Defaults to "https://www.wanikani.com/".
 ```
 
 ### Bunpro
@@ -146,6 +152,7 @@ Example config:
 [providers."Bunpro"] # The name of the provider, this can be any string (but has to be unique) 
 type = "Bunpro" # The type of the provider, this has to be "Bunpro"
 api_key = "your-key" # The API key you get from the Bunpro settings.
+action_url = "https://bunpro.jp/" # OPTIONAL: URL opened to do reviews. Defaults to "https://bunpro.jp/".
 ```
 
 ### KameSame
@@ -157,6 +164,7 @@ Example config:
 type = "KameSame" # The type of the provider, this has to
 email = "your@email.com"
 password = "your-password"
+action_url = "https://www.kamesame.com/" # OPTIONAL: URL opened to do reviews. Defaults to "https://www.kamesame.com/".
 ```
 
 

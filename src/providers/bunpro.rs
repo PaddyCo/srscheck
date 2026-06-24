@@ -6,9 +6,16 @@ use crate::cache::Cache;
 
 use super::{DataSource, ProviderData};
 
+fn default_action_url() -> Option<String> {
+    Some("https://bunpro.jp/".to_string())
+}
+
 #[derive(Debug, Deserialize)]
 pub struct BunproProvider {
     api_key: String,
+    /// URL to open to do reviews
+    #[serde(default = "default_action_url")]
+    action_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -50,6 +57,7 @@ impl DataSource for BunproProvider {
                     .unwrap()
                     .to_utc(),
             ),
+            action_url: self.action_url.clone(),
         })
     }
 }

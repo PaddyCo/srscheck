@@ -16,6 +16,8 @@ pub struct AnkiProvider {
     deck: String,
     /// AnkiConnect API key
     api_key: Option<String>,
+    /// URL to open to do reviews
+    action_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -86,6 +88,7 @@ impl DataSource for AnkiProvider {
                 Ok(ProviderData {
                     review_count: 0,
                     next_review: None,
+                    action_url: self.action_url.clone(),
                 })
             }
             Some(result) => {
@@ -93,6 +96,7 @@ impl DataSource for AnkiProvider {
                 Ok(ProviderData {
                     review_count: data.review_count + data.learn_count,
                     next_review: None,
+                    action_url: self.action_url.clone(),
                 })
             }
         }

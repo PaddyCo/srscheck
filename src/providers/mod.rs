@@ -14,6 +14,8 @@ pub struct ProviderData {
     pub review_count: i32,
     /// DateTime when the next review is available, returns None if provider does not support it
     pub next_review: Option<DateTime<Utc>>,
+    /// URL to open to act on the reviews, returns None if provider has no URL configured
+    pub action_url: Option<String>,
 }
 
 pub trait DataSource {

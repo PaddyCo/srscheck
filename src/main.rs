@@ -130,7 +130,7 @@ fn print_table(data: HashMap<&String, ProviderData>, settings: &settings::Settin
         .load_preset(UTF8_FULL)
         .apply_modifier(UTF8_ROUND_CORNERS)
         .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(vec!["System", "Reviews", "Next Review"]);
+        .set_header(vec!["System", "Reviews", "Next Review", "URL"]);
 
     let locale: Locale = get_time_locale();
 
@@ -161,6 +161,7 @@ fn print_table(data: HashMap<&String, ProviderData>, settings: &settings::Settin
                 0 => next_review,
                 _ => "Now".to_string(),
             }),
+            Cell::new(provider.action_url.clone().unwrap_or_default()),
         ]);
     }
 
@@ -204,6 +205,7 @@ fn print_table(data: HashMap<&String, ProviderData>, settings: &settings::Settin
             .fg(total_review_count_color)
             .add_attribute(Attribute::Bold),
         Cell::new(next_review).add_attribute(Attribute::Bold),
+        Cell::new(""),
     ]);
 
     println!("{}", table);

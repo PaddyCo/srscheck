@@ -6,9 +6,16 @@ use crate::cache::Cache;
 
 use super::{DataSource, ProviderData};
 
+fn default_action_url() -> Option<String> {
+    Some("https://www.wanikani.com/".to_string())
+}
+
 #[derive(Debug, Deserialize)]
 pub struct WaniKaniProvider {
     api_key: String,
+    /// URL to open to do reviews
+    #[serde(default = "default_action_url")]
+    action_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,6 +59,7 @@ impl DataSource for WaniKaniProvider {
             return Ok(ProviderData {
                 review_count: 0,
                 next_review: None,
+                action_url: self.action_url.clone(),
             });
         }
 
@@ -67,6 +75,7 @@ impl DataSource for WaniKaniProvider {
                     .unwrap()
                     .with_timezone(&Utc),
             ),
+            action_url: self.action_url.clone(),
         })
     }
 }

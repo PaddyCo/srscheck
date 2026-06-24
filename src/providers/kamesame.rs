@@ -16,10 +16,17 @@ use crate::cache::Cache;
 
 use super::{DataSource, ProviderData};
 
+fn default_action_url() -> Option<String> {
+    Some("https://www.kamesame.com/".to_string())
+}
+
 #[derive(Debug, Deserialize)]
 pub struct KameSameProvider {
     email: String,
     password: String,
+    /// URL to open to do reviews
+    #[serde(default = "default_action_url")]
+    action_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -101,6 +108,7 @@ impl DataSource for KameSameProvider {
                 return Ok(ProviderData {
                     review_count: 0,
                     next_review: None,
+                    action_url: self.action_url.clone(),
                 });
             }
 
@@ -135,6 +143,7 @@ impl DataSource for KameSameProvider {
         return Ok(ProviderData {
             review_count: status.reviews_status.ready_for_review,
             next_review: None,
+            action_url: self.action_url.clone(),
         });
     }
 }
