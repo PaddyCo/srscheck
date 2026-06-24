@@ -50,6 +50,12 @@ struct Args {
 
     #[arg(long, help = "Path to the config file")]
     config_path: Option<PathBuf>,
+
+    #[arg(
+        long,
+        help = "Ignore our cache expiry and force fetching fresh data from providers"
+    )]
+    force_fetch: bool,
 }
 
 #[tokio::main]
@@ -67,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut data: BTreeMap<&String, ProviderData> = BTreeMap::new();
 
     for (name, provider) in &settings.providers {
-        let cache = cache::Cache::new(name, &settings)?;
+        let cache = cache::Cache::new(name, &settings, args.force_fetch)?;
         // TODO: Run in parallel
         // TODO: Handle errors from provider, and continue to next provider and track all failed
         // providers

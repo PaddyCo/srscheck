@@ -23,6 +23,11 @@ pub struct Cache {
     /// re-parse the file from disk each time.
     #[serde(skip)]
     loaded: RefCell<Option<HashMap<String, toml::Value>>>,
+    /// When set, our own cache expiry is ignored and fresh data is always fetched.
+    /// Provider-level HTTP caching (e.g. WaniKani's `ETag`/`If-Modified-Since`) is
+    /// unaffected by this flag.
+    #[serde(skip)]
+    force: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,7 +38,11 @@ struct CachedEntry<T> {
 
 impl Cache {
     #[instrument(name = "new", skip(settings))]
-    pub fn new(provider: &str, settings: &Settings) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(
+        provider: &str,
+        settings: &Settings,
+        force: bool,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let cache_dir = &settings.cache_path;
         debug!("Cache path: \"{:?}\"...", cache_dir);
 
@@ -50,7 +59,13 @@ impl Cache {
         Ok(Cache {
             cache_path,
             loaded: RefCell::new(None),
+            force,
         })
+    }
+
+    /// Whether our own cache expiry should be ignored, forcing a fresh fetch.
+    pub fn is_forced(&self) -> bool {
+        self.force
     }
 
     /// Load the full cache file, mapping cache keys to their raw stored value.
@@ -123,11 +138,11 @@ impl Cache {
         Fut: Future<Output = Result<T, reqwest::Error>>,
     {
         if let Ok(Some(entry)) = self.read::<CachedEntry<T>>(key) {
-            if entry.expires_at > Utc::now() {
+            if !self.force && entry.expires_at > Utc::now() {
                 debug!("Using cached data for key \"{}\"", key);
                 return Ok(entry.data);
             }
-            debug!("Cached data for key \"{}\" expired", key);
+            debug!("Cached data for key \"{}\" expired or force fetch requested", key);
         }
 
         let data = fetch().await?;

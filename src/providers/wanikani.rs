@@ -93,7 +93,7 @@ impl DataSource for WaniKaniProvider {
         let cached = cache.read::<CachedSummary>(DATA_KEY).ok().flatten();
 
         let summary = match &cached {
-            Some(entry) if entry.expires_at > Utc::now() => {
+            Some(entry) if !cache.is_forced() && entry.expires_at > Utc::now() => {
                 info!("Using cached data for WaniKani");
                 entry.summary.clone()
             }
