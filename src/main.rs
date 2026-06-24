@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, path::PathBuf};
+use std::{collections::BTreeMap, env, path::PathBuf};
 
 use chrono::{DateTime, Local, Locale};
 use clap::{command, Parser, ValueEnum};
@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         None => settings::Settings::from_default_path()?,
     };
 
-    let mut data: HashMap<&String, ProviderData> = HashMap::new();
+    let mut data: BTreeMap<&String, ProviderData> = BTreeMap::new();
 
     for (name, provider) in &settings.providers {
         let cache = cache::Cache::new(name, &settings)?;
@@ -102,7 +102,7 @@ fn get_time_locale() -> Locale {
     }
 }
 
-fn print_json(data: HashMap<&String, ProviderData>, pretty: bool) {
+fn print_json(data: BTreeMap<&String, ProviderData>, pretty: bool) {
     let mut providers: Vec<ProviderOutput> = Vec::new();
 
     for (name, provider_data) in data {
@@ -122,7 +122,7 @@ fn print_json(data: HashMap<&String, ProviderData>, pretty: bool) {
     println!("{}", json);
 }
 
-fn print_table(data: HashMap<&String, ProviderData>, settings: &settings::Settings) {
+fn print_table(data: BTreeMap<&String, ProviderData>, settings: &settings::Settings) {
     let mut table = Table::new();
     let mut rows: Vec<Vec<Cell>> = Vec::new();
     let review_threshold = settings.review_threshold;
