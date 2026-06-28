@@ -10,7 +10,7 @@ CLI tool for quickly getting the status of multiple SRS (Spaced Repetition Syste
 
 - API responses are cached to disk per-provider (in `cache_path`), so running the tool repeatedly within the cache window won't hit the provider's API again. Each provider has a default cache expiration (see [Supported providers](#supported-providers)), which can be overridden per-provider with `cache_expiry` (in seconds).
 
-- Error handling is minimal at the moment, so if something goes wrong, a provider might silently fail and return a review count of 0. (It will log a warning to the console, but that's not helpful if you are running this in a script for example)
+- If a provider fails to fetch data, it will show `status: Error` in the output (with the error message in JSON mode) and be excluded from the total review count. Other providers are unaffected.
 
 
 ## Usage
@@ -38,19 +38,21 @@ Increase the verbosity with additional `-v` flags. (e.g. `-vv`, `-vvv`, etc)
 ```
 $ srscheck
 
-╭──────────┬─────────┬─────────────────────┬───────────────────────────╮
-│ System   ┆ Reviews ┆ Next Review         ┆ URL                       │
-╞══════════╪═════════╪═════════════════════╪═══════════════════════════╡
-│ WaniKani ┆ 0       ┆ 2025-01-19 15:00:00 ┆ https://www.wanikani.com/ │
-├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
-│ Anki     ┆ 12      ┆ Now                 ┆                           │
-├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
-│ KameSame ┆ 42      ┆ Now                 ┆ https://www.kamesame.com/ │
-├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
-│ Bunpro   ┆ 9       ┆ Now                 ┆ https://bunpro.jp/        │
-├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
-│ Total    ┆ 63      ┆ Now                 ┆                           │
-╰──────────┴─────────┴─────────────────────┴───────────────────────────╯
+╭──────────┬────────┬─────────┬─────────────────────┬───────────────────────────╮
+│ System   ┆ Status ┆ Reviews ┆ Next Review         ┆ URL                       │
+╞══════════╪════════╪═════════╪═════════════════════╪═══════════════════════════╡
+│ WaniKani ┆ OK     ┆ 0       ┆ 2025-01-19 15:00:00 ┆ https://www.wanikani.com/ │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Anki     ┆ OK     ┆ 12      ┆ Now                 ┆                           │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ KameSame ┆ OK     ┆ 42      ┆ Now                 ┆ https://www.kamesame.com/ │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Bunpro   ┆ OK     ┆ 9       ┆ Now                 ┆ https://bunpro.jp/        │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ MySrs    ┆ Error  ┆ N/A     ┆ N/A                 ┆                           │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Total    ┆        ┆ 63      ┆ Now                 ┆                           │
+╰──────────┴────────┴─────────┴─────────────────────┴───────────────────────────╯
 ```
 
 ```shell
@@ -59,28 +61,37 @@ $ srscheck -o json --pretty
 {
   "providers": [
     {
+      "status": "OK",
       "name": "WaniKani",
       "review_count": 0,
       "next_review": "2025-01-19T22:00:00Z",
       "action_url": "https://www.wanikani.com/"
     },
     {
+      "status": "OK",
       "name": "Bunpro",
       "review_count": 0,
       "next_review": "2025-01-19T16:00:00Z",
       "action_url": "https://bunpro.jp/"
     },
     {
+      "status": "OK",
       "name": "KameSame",
       "review_count": 0,
       "next_review": null,
       "action_url": "https://www.kamesame.com/"
     },
     {
+      "status": "OK",
       "name": "Anki",
       "review_count": 0,
       "next_review": null,
       "action_url": null
+    },
+    {
+      "status": "Error",
+      "name": "MySrs",
+      "error": "error sending request for url: dns error: failed to lookup address information: Name or service not known"
     }
   ]
 }

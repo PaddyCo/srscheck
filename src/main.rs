@@ -19,10 +19,19 @@ mod providers;
 mod settings;
 
 #[derive(Debug, Serialize)]
-struct ProviderOutput {
-    name: String,
-    #[serde(flatten)]
-    data: ProviderData,
+#[serde(tag = "status")]
+enum ProviderOutput {
+    #[serde(rename = "OK")]
+    Ok {
+        name: String,
+        #[serde(flatten)]
+        data: ProviderData,
+    },
+    #[serde(rename = "Error")]
+    Error {
+        name: String,
+        error: String,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -70,29 +79,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         None => settings::Settings::from_default_path()?,
     };
 
-    let mut data: BTreeMap<&String, ProviderData> = BTreeMap::new();
+    let mut data: BTreeMap<&String, Result<ProviderData, String>> = BTreeMap::new();
 
     for (name, provider) in &settings.providers {
         let cache = cache::Cache::new(name, &settings, args.force_fetch)?;
         // TODO: Run in parallel
-        // TODO: Handle errors from provider, and continue to next provider and track all failed
-        // providers
-        let provider_data = match &provider {
-            settings::Provider::WaniKani(provider) => provider.get_data(cache).await?,
-            settings::Provider::Bunpro(provider) => provider.get_data(cache).await?,
-            settings::Provider::Anki(provider) => provider.get_data(cache).await?,
-            settings::Provider::KameSame(provider) => provider.get_data(cache).await?,
-            settings::Provider::NativShark(provider) => provider.get_data(cache).await?,
-            settings::Provider::Http(provider) => provider.get_data(cache).await?,
+        let result = match &provider {
+            settings::Provider::WaniKani(provider) => provider.get_data(cache).await.map_err(|e| e.to_string()),
+            settings::Provider::Bunpro(provider) => provider.get_data(cache).await.map_err(|e| e.to_string()),
+            settings::Provider::Anki(provider) => provider.get_data(cache).await.map_err(|e| e.to_string()),
+            settings::Provider::KameSame(provider) => provider.get_data(cache).await.map_err(|e| e.to_string()),
+            settings::Provider::NativShark(provider) => provider.get_data(cache).await.map_err(|e| e.to_string()),
+            settings::Provider::Http(provider) => provider.get_data(cache).await.map_err(|e| e.to_string()),
         };
 
-        data.insert(name, provider_data);
+        if let Err(ref e) = result {
+            warn!("Provider {} failed: {}", name, e);
+        }
+
+        data.insert(name, result);
     }
 
     match args.output {
         Some(OutputType::Json) => print_json(data, args.pretty),
         Some(OutputType::Table) | None => print_table(data, &settings),
     }
+
 
     Ok(())
 }
@@ -109,13 +121,19 @@ fn get_time_locale() -> Locale {
     }
 }
 
-fn print_json(data: BTreeMap<&String, ProviderData>, pretty: bool) {
+fn print_json(data: BTreeMap<&String, Result<ProviderData, String>>, pretty: bool) {
     let mut providers: Vec<ProviderOutput> = Vec::new();
 
-    for (name, provider_data) in data {
-        providers.push(ProviderOutput {
-            name: name.clone(),
-            data: provider_data,
+    for (name, result) in data {
+        providers.push(match result {
+            Ok(provider_data) => ProviderOutput::Ok {
+                name: name.clone(),
+                data: provider_data,
+            },
+            Err(error) => ProviderOutput::Error {
+                name: name.clone(),
+                error,
+            },
         });
     }
 
@@ -129,7 +147,7 @@ fn print_json(data: BTreeMap<&String, ProviderData>, pretty: bool) {
     println!("{}", json);
 }
 
-fn print_table(data: BTreeMap<&String, ProviderData>, settings: &settings::Settings) {
+fn print_table(data: BTreeMap<&String, Result<ProviderData, String>>, settings: &settings::Settings) {
     let mut table = Table::new();
     let mut rows: Vec<Vec<Cell>> = Vec::new();
     let review_threshold = settings.review_threshold;
@@ -138,64 +156,79 @@ fn print_table(data: BTreeMap<&String, ProviderData>, settings: &settings::Setti
         .load_preset(UTF8_FULL)
         .apply_modifier(UTF8_ROUND_CORNERS)
         .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(vec!["System", "Reviews", "Next Review", "URL"]);
+        .set_header(vec!["System", "Status", "Reviews", "Next Review", "URL"]);
 
     let locale: Locale = get_time_locale();
 
     info!("Using locale: {}", locale);
 
-    for (name, provider) in &data {
-        let next_review = match provider.next_review {
-            Some(date) => date
-                .with_timezone(&Local)
-                .format_localized("%x %X", locale)
-                .to_string(),
-            None => "N/A".to_string(),
-        };
+    for (name, result) in &data {
+        match result {
+            Ok(provider) => {
+                let next_review = match provider.next_review {
+                    Some(date) => date
+                        .with_timezone(&Local)
+                        .format_localized("%x %X", locale)
+                        .to_string(),
+                    None => "N/A".to_string(),
+                };
 
-        rows.push(vec![
-            Cell::new(name),
-            Cell::new(provider.review_count.to_string()).fg(match provider.review_count {
-                0 => Color::Green,
-                _ => {
-                    if provider.review_count < review_threshold {
-                        Color::Yellow
-                    } else {
-                        Color::Red
-                    }
-                }
-            }),
-            Cell::new(match provider.review_count {
-                0 => next_review,
-                _ => "Now".to_string(),
-            }),
-            Cell::new(provider.action_url.clone().unwrap_or_default()),
-        ]);
+                rows.push(vec![
+                    Cell::new(name),
+                    Cell::new("OK").fg(Color::Green),
+                    Cell::new(provider.review_count.to_string()).fg(match provider.review_count {
+                        0 => Color::Green,
+                        _ => {
+                            if provider.review_count < review_threshold {
+                                Color::Yellow
+                            } else {
+                                Color::Red
+                            }
+                        }
+                    }),
+                    Cell::new(match provider.review_count {
+                        0 => next_review,
+                        _ => "Now".to_string(),
+                    }),
+                    Cell::new(provider.action_url.clone().unwrap_or_default()),
+                ]);
+            }
+            Err(_) => {
+                rows.push(vec![
+                    Cell::new(name),
+                    Cell::new("Error").fg(Color::Red),
+                    Cell::new("N/A"),
+                    Cell::new("N/A"),
+                    Cell::new(""),
+                ]);
+            }
+        }
     }
 
     table.add_rows(rows);
 
-    let total_review_count = &data
+    let total_review_count = data
         .iter()
-        .fold(0, |acc, (_, data)| acc + data.review_count);
+        .fold(0, |acc, (_, result)| acc + result.as_ref().map(|d| d.review_count).unwrap_or(0));
     let total_review_count_color = match total_review_count {
         0 => Color::Green,
         _ => {
-            if total_review_count.clone() < review_threshold {
+            if total_review_count < review_threshold {
                 Color::Yellow
             } else {
                 Color::Red
             }
         }
     };
-    // Get the lowest next review date time
+    // Get the lowest next review date time across successful providers
     let next_review = match total_review_count {
         0 => match data
             .iter()
-            .filter(|(_, data)| data.next_review.is_some())
-            .min_by_key(|(_, data)| data.next_review)
+            .filter_map(|(_, result)| result.as_ref().ok())
+            .filter(|d| d.next_review.is_some())
+            .min_by_key(|d| d.next_review)
         {
-            Some((_, provider)) => provider
+            Some(provider) => provider
                 .next_review
                 .as_ref()
                 .unwrap()
@@ -209,6 +242,7 @@ fn print_table(data: BTreeMap<&String, ProviderData>, settings: &settings::Setti
 
     table.add_row(vec![
         Cell::new("Total").add_attribute(Attribute::Bold),
+        Cell::new("").add_attribute(Attribute::Bold),
         Cell::new(total_review_count)
             .fg(total_review_count_color)
             .add_attribute(Attribute::Bold),
